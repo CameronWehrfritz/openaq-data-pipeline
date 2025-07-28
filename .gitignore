@@ -1,0 +1,10 @@
+# Ignore virtual environment
+venv/
+
+# Ignore notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore credentials or config files (if applicable)
+config/
+secrets.json
+.env
