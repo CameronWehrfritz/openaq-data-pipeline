@@ -98,4 +98,9 @@ Each time you start working on the project:
     git push
     ```
 
+4. Confirm repos are in sync
+    ```bash
+    git fetch
+    git status
+    ```
 
