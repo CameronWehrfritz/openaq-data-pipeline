@@ -2,13 +2,16 @@
 config.py
 
 Loads environment variables from the .env file and provides
-secure access to sensitive configuration values such as
-the GitHub Personal Access Token (PAT) for use in the project.
+secure access to sensitive configuration values for use in 
+the project.
 """
 
 from dotenv import load_dotenv
 import os
 
-load_dotenv()  # Loads variables from .env
+# Load .env variables when config.py is first imported
+load_dotenv()
 
-GITHUB_PAT = os.getenv("GITHUB_PAT")
+# Expose secrets as constants
+GITHUB_PAT = os.getenv("GITHUB_PAT") # Github token
+OPENAQ_API_KEY = os.getenv("OPENAQ_API_KEY") # OpenAQ API token

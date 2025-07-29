@@ -69,13 +69,13 @@ Each time you start working on the project:
     .\venv\Scripts\activate
     ```
 
-2. Open Jupyter notebook
-    ```bash
-    jupyter notebook
-    ```
+2. Open notebook
+    -  Launch VS Code
+    -  Open project folder
+    -  Open notebook
+    -  Select virtual environment as a kernel (from the dropdown option)
 
-3. Work inside notebooks or scripts
-Save frequently. Commit logical chunks of work.
+3. Work inside notebooks or scripts. Save frequently. Commit logical chunks of work.
 
 4. Update dependencies if needed
     ```bash

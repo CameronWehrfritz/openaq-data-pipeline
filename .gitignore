@@ -4,7 +4,12 @@ venv/
 # Ignore notebook checkpoints
 .ipynb_checkpoints/
 
-# Ignore credentials or config files (if applicable)
-config/
+# Ignore specific config file containing secrets
+/scripts/config.py
+
+# Ignore credentials and env files
 secrets.json
 .env
+
+# Ignore Python cache
+__pycache__/
