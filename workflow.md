@@ -10,7 +10,12 @@ This document outlines the standard steps I follow to set up, run, and maintain 
 
 openaq_pipeline_project/
 ├── notebooks/
+│   └── 00_scratchpad.ipynb
 │   └── 01_pull_data.ipynb
+│   └── 02_clean_data.ipynb
+│   └── 03_eda_pm25.ipynb
+│   └── 04_modeling.ipynb
+│   └── 05_viz_report.ipynb
 ├── scripts/
 │   └── config.py
 ├── .env
