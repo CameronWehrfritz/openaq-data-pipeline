@@ -8,6 +8,7 @@ This project uses the [OpenAQ API](https://docs.openaq.org/) to extract air qual
 
 - API integration using Python
 - Data cleaning and transformation with pandas
+- Data ETL with Google Cloud BigQuery
 - Exploratory analysis and visualization
 - Clean project structure with Git and virtual environments
 
@@ -17,7 +18,7 @@ This project uses the [OpenAQ API](https://docs.openaq.org/) to extract air qual
 - Jupyter Notebook
 - pandas, requests, matplotlib/seaborn
 - Git + GitHub
-- (Optional) Google BigQuery or SQL exploration
+- Google BigQuery
 
 ## 🚀 How to Run
 
