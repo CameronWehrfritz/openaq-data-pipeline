@@ -1,18 +1,29 @@
-# Ignore virtual environment
+# Sensitive files
+.env
+*.json  # Service account keys
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log
+
+# Virtual environment
+openaq_env/
 venv/
 
-# Ignore local test scripts
-scripts/test_*.py
-
-# Ignore notebook checkpoints
+# Jupyter notebooks
 .ipynb_checkpoints/
 
-# Ignore specific config file containing secrets
-/scripts/config.py
+# IDE files
+.vscode/
+.idea/
 
-# Ignore credentials and env files
-secrets.json
-.env
+# OS files
+.DS_Store
+Thumbs.db
 
-# Ignore Python cache
-__pycache__/
+*.ipynb
+notebooks/
