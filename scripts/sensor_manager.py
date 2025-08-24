@@ -5,6 +5,8 @@ Handles sensor data comparison, validation, and database operations
 
 import logging
 import pandas as pd
+import time
+import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
@@ -408,22 +410,127 @@ class SensorManager:
         
         return success
     
-    def update_existing_sensors(self, updated_sensors: pd.DataFrame) -> bool:
+    def update_existing_sensors_bulk(self, updated_sensors: pd.DataFrame) -> bool:
         """
-        Update existing sensors in BigQuery using individual UPDATE statements
+        Update existing sensors in BigQuery using a temporary table + MERGE approach
         
         Args:
             updated_sensors: DataFrame of sensors to update
             
         Returns:
-            bool: True if all updates were successful
+            bool: True if bulk update was successful
         """
         if updated_sensors.empty:
             self.logger.info("No sensors to update")
             return True
         
-        self.logger.info(f"Updating {len(updated_sensors)} existing sensors")
+        self.logger.info(f"Bulk updating {len(updated_sensors)} existing sensors")
         
+        try:
+            temp_table_id = f"temp_sensor_updates_{uuid.uuid4().hex[:8]}"
+            
+            # Step 1: Prepare data for temporary table
+            rows = []
+            current_time = datetime.now(timezone.utc)
+            
+            for _, sensor in updated_sensors.iterrows():
+                # Format timestamps
+                datetime_first = self._format_timestamp_for_bq(sensor.get('datetimeFirst'))
+                datetime_last = self._format_timestamp_for_bq(sensor.get('datetimeLast'))
+                
+                row = {
+                    "sensor_id": int(sensor.get('sensor_id')),
+                    "location_name": sensor.get('location_name'),
+                    "locality": sensor.get('locality'),
+                    "lat": float(sensor.get('lat')) if sensor.get('lat') is not None else None,
+                    "lon": float(sensor.get('lon')) if sensor.get('lon') is not None else None,
+                    "datetimeFirst": datetime_first,
+                    "datetimeLast": datetime_last,
+                    "updated_at": current_time.isoformat()
+                }
+                rows.append(row)
+            
+            # Step 2: Create temporary table schema
+            temp_schema = [
+                bigquery.SchemaField("sensor_id", "INTEGER"),
+                bigquery.SchemaField("location_name", "STRING"),
+                bigquery.SchemaField("locality", "STRING"),
+                bigquery.SchemaField("lat", "FLOAT64"),
+                bigquery.SchemaField("lon", "FLOAT64"),
+                bigquery.SchemaField("datetimeFirst", "TIMESTAMP"),
+                bigquery.SchemaField("datetimeLast", "TIMESTAMP"),
+                bigquery.SchemaField("updated_at", "TIMESTAMP")
+            ]
+            
+            # Step 3: Create and populate temporary table
+            success = self.bq_manager.create_table(
+                self.config.DATASET_ID,
+                temp_table_id,
+                temp_schema,
+                description="Temporary table for bulk sensor updates"
+            )
+            
+            if not success:
+                raise Exception("Failed to create temporary table")
+            
+            # Insert data into temp table
+            success = self.bq_manager.insert_rows(
+                self.config.DATASET_ID,
+                temp_table_id,
+                rows
+            )
+            
+            if not success:
+                raise Exception("Failed to insert data into temporary table")
+            
+            # Step 4: Execute MERGE using temporary table
+            merge_query = f"""
+            MERGE `{self.config.PROJECT_ID}.{self.config.DATASET_ID}.{self.config.SENSOR_TABLE_ID}` T
+            USING `{self.config.PROJECT_ID}.{self.config.DATASET_ID}.{temp_table_id}` S
+            ON T.sensor_id = S.sensor_id
+            WHEN MATCHED THEN
+                UPDATE SET
+                    location_name = S.location_name,
+                    locality = S.locality,
+                    lat = S.lat,
+                    lon = S.lon,
+                    datetimeFirst = S.datetimeFirst,
+                    datetimeLast = S.datetimeLast,
+                    updated_at = S.updated_at
+            """
+            
+            self.logger.debug(f"Executing bulk MERGE using temp table: {temp_table_id}")
+            query_job = self.bq_manager.client.query(merge_query)
+            result = query_job.result()
+            
+            # Step 5: Clean up temporary table
+            try:
+                self.bq_manager.client.delete_table(
+                    f"{self.config.PROJECT_ID}.{self.config.DATASET_ID}.{temp_table_id}"
+                )
+                self.logger.debug(f"Cleaned up temporary table: {temp_table_id}")
+            except Exception as cleanup_error:
+                self.logger.warning(f"Failed to cleanup temp table {temp_table_id}: {cleanup_error}")
+            
+            # Check results
+            if hasattr(result, 'num_dml_affected_rows'):
+                affected_rows = result.num_dml_affected_rows
+                self.logger.info(f"Bulk MERGE completed: {affected_rows} rows updated")
+            else:
+                self.logger.info("Bulk MERGE completed successfully")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Bulk MERGE operation failed: {e}")
+            self.logger.info("Falling back to individual sensor updates")
+            return self._update_sensors_individually(updated_sensors)
+
+    def _update_sensors_individually(self, updated_sensors: pd.DataFrame) -> bool:
+        """
+        Fallback method: Update sensors individually if bulk operation fails
+        This is was the previous update_existing_sensors logic before adding bulk MERGE
+        """
         success_count = 0
         total_sensors = len(updated_sensors)
         
@@ -436,12 +543,12 @@ class SensorManager:
         success = success_count == total_sensors
         
         if success:
-            self.logger.info(f"Successfully updated all {total_sensors} sensors")
+            self.logger.info(f"Individual updates: Successfully updated all {total_sensors} sensors")
         else:
-            self.logger.warning(f"Updated {success_count}/{total_sensors} sensors")
+            self.logger.warning(f"Individual updates: Updated {success_count}/{total_sensors} sensors")
         
         return success
-    
+
     def _update_single_sensor(self, sensor: pd.Series) -> bool:
         """Update a single sensor record using MERGE"""
         sensor_id = sensor.get('sensor_id')
@@ -483,12 +590,6 @@ class SensorManager:
                     bigquery.ScalarQueryParameter("sensor_id", "INTEGER", sensor_id),
                     bigquery.ScalarQueryParameter("location_name", "STRING", sensor.get('location_name')),
                     bigquery.ScalarQueryParameter("locality", "STRING", sensor.get('locality')),
-                    # DEBUG
-                    # bigquery.ScalarQueryParameter("is_mobile", "BOOLEAN", sensor.get('is_mobile')),
-                    # bigquery.ScalarQueryParameter("is_monitor", "BOOLEAN", sensor.get('is_monitor')),
-                    # POTENTIAL FIX - explicitly convert the boolean values to avoid any pandas/BigQuery type ambiguity
-                    # bigquery.ScalarQueryParameter("is_mobile", "BOOLEAN", bool(sensor.get('is_mobile')) if sensor.get('is_mobile') is not None else None),
-                    # bigquery.ScalarQueryParameter("is_monitor", "BOOLEAN", bool(sensor.get('is_monitor')) if sensor.get('is_monitor') is not None else None),
                     bigquery.ScalarQueryParameter("lat", "FLOAT64", float(sensor.get('lat')) if sensor.get('lat') is not None else None),
                     bigquery.ScalarQueryParameter("lon", "FLOAT64", float(sensor.get('lon')) if sensor.get('lon') is not None else None),
                     bigquery.ScalarQueryParameter("datetimeFirst", "TIMESTAMP", datetime_first),
@@ -506,7 +607,7 @@ class SensorManager:
         except Exception as e:
             self.logger.error(f"BigQuery error updating sensor {sensor_id}: {e}")
             return False
-    
+
     def process_sensor_updates(self, fetched_sensors: pd.DataFrame) -> Dict[str, any]:
         """
         Main method to process sensor updates - orchestrates the entire workflow
@@ -552,7 +653,14 @@ class SensorManager:
             }
         
         # Process updates only if no new insertions
-        update_success = self.update_existing_sensors(updated_sensors)
+        if len(updated_sensors) > 0:
+            self.logger.info(f"Starting bulk update of {len(updated_sensors)} sensors...")
+            start_time = time.time()
+            update_success = self.update_existing_sensors_bulk(updated_sensors)
+            end_time = time.time()
+            self.logger.info(f"Bulk update completed in {end_time - start_time:.2f} seconds")
+        else:
+            update_success = True
         
         # Calculate results
         overall_success = new_success and update_success

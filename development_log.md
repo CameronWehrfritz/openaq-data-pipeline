@@ -159,39 +159,101 @@ Updated: 2025-08-23
 ---
 
 # Session 3: Investigate bulk MERGE operations
-2025-08-24 (1:35pm-)
+2025-08-24 (1:35pm-2:45pm)
 
-## Technical Progress
+## 1. Technical Progress
 
-## Problem-Solving Documentation
+**Technical Solution:**
+- Temporary table + MERGE approach instead of STRUCT array parameters     
+- Single database round-trip vs 23 individual MERGE operations    
+- Automatic cleanup of temporary tables  
 
-## Interview Preparation Notes
+## 2. Problem-Solving Documentation
 
-## Learning Milestones
+**Primary Problem:** Initial bulk MERGE implementation using STRUCT array parameters failed with BigQuery error
 
-## Time Management
+```
+Invalid value for type: STRUCT<sensor_id INT64, location_name STRING, locality STRING, lat FLOAT64, lon FLOAT64, datetimeFirst TIMESTAMP, datetimeLast TIMESTAMP, updated_at TIMESTAMP> is not a valid value
+```
 
-## Session Summary
-- **Key Accomplishments:** What major components were completed
-- **Blockers Identified:** What needs attention next session
-- **Next Session Goals:** Clear objectives for the following work period
+**Root Cause Analysis:**
+
+- BigQuery's ArrayQueryParameter with complex STRUCT types has strict formatting requirements
+- Python object-to-BigQuery type conversion failed, likely due to timestamp formatting or null value handling
+- STRUCT array approach works well for simple data types but becomes unreliable with mixed nulls, timestamps, and floating-point precision
+
+**Solution Discovery Process:**
+
+1. Initial approach: UNNEST with STRUCT array - failed due to parameter binding issues
+2. Debugging attempt: Examined data types and null handling - error persisted
+3. Alternative evaluation: Considered temporary table approach as more reliable method
+4. Implementation: Temporary table + MERGE pattern with explicit schema definition
+
+**Why Temporary Table Approach Worked:**
+
+- Explicit schema control: Temporary table schema matches target table exactly
+- Standard INSERT operations: Avoids complex parameter binding entirely
+- Reliable type conversion: BigQuery handles data type conversion during INSERT
+- Proven pattern: Temporary table + MERGE is a well-established BigQuery bulk operation pattern
+- Error isolation: Failures occur at predictable points (table creation, data insertion, or MERGE execution)
+
+**Technical Implementation:**
+
+- UUID-based temporary table naming prevents concurrent execution conflicts
+    - If multiple pipeline instances run simultaneously - each gets a unique table name
+    - Without this, two concurrent runs could try creating the same temp table and fail
+- Automatic cleanup with error handling ensures no orphaned tables
+- Graceful fallback to individual updates maintains pipeline reliability
+
+## 3. Performance Metrics
+
+### 3.1 Bulk Update
+- Before: Individual MERGE operations (~5.5 seconds per sensor × 23 sensors = ~120 seconds)
+- After: Single bulk operation (4.73 seconds)
+- Method: Temporary table creation → data insertion → MERGE → cleanup
+
+### 3.2 Entire Pipeline
+- Total pipeline execution time 13 seconds
+- Overall performance improvement (~25x faster for updates)
+
+## 4. Learning Milestones
+
+- When to choose temporary tables vs STRUCT arrays: temp tables better for 100+ rows, complex data types, or reliability over slight performance gains
+- The temporary table approach trades slight overhead (table creation/deletion) for significantly improved reliability and debuggability
+- Fallback strategy implementation (graceful degradation to individual updates)
+- Python provides a built-in uuid module for generating Universally Unique Identifiers (UUIDs), also known as Globally Unique Identifiers (GUIDs). UUIDs are 128-bit numbers used to uniquely identify information in distributed systems, minimizing the chance of identifier collisions.
+
+## 5. Time Management
+
+- Efficient 80-minute optimization session delivered 25x performance improvement
+
+## 6. Session Summary
+
+- **Key Accomplishments:** Bulk update with BigQuery temporary table
+- **Blockers Identified:** None
+- **Next Session Goals:** Explore error handling improvements, data validation and monitoring capabilities
+
+**Technical Debt:** Boolean fields excluded from updates pending resolution of BigQuery MERGE parameter issue
 
 ---
 
 # Session 4: Integration testing and error handling
 2025-08-25 (8am-12pm)
 
-## Technical Progress
+## 1. Technical Progress
 
-## Problem-Solving Documentation
+## 2. Problem-Solving Documentation
 
-## Interview Preparation Notes
+## 3. Performance Metrics
 
-## Learning Milestones
+## 4. Learning Milestones
 
-## Time Management
+## 5. Time Management
 
-## Session Summary
+- 4 hour session, did I take at least one 20+ minute walk break?
+
+## 6. Session Summary
+
 - **Key Accomplishments:** What major components were completed
 - **Blockers Identified:** What needs attention next session
 - **Next Session Goals:** Clear objectives for the following work period
@@ -201,17 +263,18 @@ Updated: 2025-08-23
 # Session 5: Final optimization and documentation cleanup
 2025-08-25 (2pm-5pm)
 
-## Technical Progress
+## 1. Technical Progress
 
-## Problem-Solving Documentation
+## 2. Problem-Solving Documentation
 
-## Interview Preparation Notes
+## 3. Performance Metrics
 
-## Learning Milestones
+## 4. Learning Milestones
 
-## Time Management
+## 5. Time Management
 
-## Session Summary
+## 6. Session Summary
+
 - **Key Accomplishments:** What major components were completed
 - **Blockers Identified:** What needs attention next session
 - **Next Session Goals:** Clear objectives for the following work period
