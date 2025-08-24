@@ -18,15 +18,29 @@ Updated: 2025-08-23
 - Dependencies updated and documented
 - Tested duplicate prevention logic → failed, needs revision
 
+
+
 ## Technical Progress
 
 - Created and activated a new virtual environment (openaq_env)
 - Installed required dependencies (google-cloud-bigquery, pandas, requests, python-dotenv)
 - Configured .env file for storing GCP project credentials
 - Built schema for pm25_ca_sensors with sensor_id as primary key
+
+### BigQuery Schema Design
+**Table:** pm25_ca_sensors  
+**Primary Key:** sensor_id (STRING, REQUIRED)  
+**Key Fields:** location_id, lat/lon (REQUIRED), timestamps (datetimeFirst/Last, created_at, updated_at)  
+**Total Columns:** 20 fields covering sensor metadata, location data, ownership, and audit trails  
+**Notable Decisions:** 
+- sensor_id as STRING (not INTEGER) to match OpenAQ API format
+- Separate created_at/updated_at for audit tracking
+- Nullable fields for optional OpenAQ metadata
+
 - Verified BigQuery client connection with test query
 - Implemented initial pipeline to pull PM2.5 sensor metadata from OpenAQ API
 - Successfully inserted 59 unique CA sensors into BigQuery table
+
 
 ## Problem-Solving Documentation
 
@@ -73,28 +87,69 @@ Updated: 2025-08-23
 
 ---
 
-# Session 2: Core class consolidation and OOP implementation
-2025-08-24 (8am-12pm)
+# Session 2: Schema fixes and BigQuery streaming buffer debugging
+2025-08-24 (8:10am-10:15am)
 
 ## Technical Progress
 
+- **Schema correction:** Changed sensor_id from STRING to INTEGER based on OpenAQ API documentation
+- **Table recreation:** Dropped and recreated pm25_ca_sensors table with correct schema
+- **Duplicate prevention verified:** Second pipeline run correctly identified 0 new sensors
+- **Update mechanism implemented** Added MERGE-based update logic for existing sensor records
+- **Streaming buffer workaround:** Modified pipeline to skip updates when new data is inserted
+
 ## Problem-Solving Documentation
 
-## Interview Preparation Notes
+**Primary Problem:** Duplicate prevention logic failed - repeated API calls inserted duplicate rows     
+**Root Cause:** Schema mismatch (sensor_id STRING vs INTEGER)      
+**Solution:** Schema correction and table recreation
+
+**Debugging Process:**
+- Added debug logging to trace boolean values through data pipeline
+- Confirmed API returns proper Python bool types (True/False)
+- Tested explicit bool() conversion - no improvement
+- Issue persists despite correct data types in parameters
+- Tested MERGE vs UPDATE query approaches
+- **Actual Root Cause:** BigQuery streaming buffer limitations prevent updates on recently inserted data
+- **Solution:** Logic change to skip updates when new insertions occur, avoiding streaming buffer conflicts
+
+**Secondary Problem:** Update operations failing due to Boolean Parameter Binding (Unresolved)
+- Error: "Invalid value for type: BOOLEAN is not a valid value"
+- Occurs in MERGE operations regardless of streaming buffer status
+- INSERT behavior with boolean fields not yet verified in current setup
+- Current workaround: Exclude boolean fields from updates
+- Root cause hypothesis: BigQuery parameter binding issue with boolean fields, cause unknown
+
+### Performance Observation:
+
+- Individual sensor updates via MERGE: ~2 minutes for 22 sensors (~5.5 seconds per sensor)
+- Indicates need for batch update optimization in future iterations
+
+## Performance Metrics
+
+- API response time: 1.6-5.5 seconds for 59 sensors
+- Successfully processed sensor updates in ~2 minutes
+- Update success rate: 100% after streaming buffer fix
 
 ## Learning Milestones
 
-## Time Management
+- BigQuery streaming buffer behavior impacts UPDATE/DELETE operations on recently inserted data
+- Misleading error messages can mask underlying infrastructure limitations
+- Systematic debugging with targeted logging reveals true root causes
+- Schema validation against API documentation prevents integration issues
 
 ## Session Summary
-- **Key Accomplishments:** What major components were completed
-- **Blockers Identified:** What needs attention next session
-- **Next Session Goals:** Clear objectives for the following work period
+
+- **Key Accomplishments:** Fixed duplicate prevention, implemented working update mechanism, resolved streaming buffer conflicts
+- **Blockers Resolved:** Schema datatype mismatch, BigQuery streaming buffer limitations
+- **Next Session Goals:** batch update optimization for sensors
+
+**Technical Debt:** Boolean fields excluded from updates pending resolution of BigQuery MERGE parameter issue
 
 ---
 
 # Session 3: Core class consolidation and OOP implementation
-2025-08-24 (2pm-5pm)
+2025-08-24 (10:30am-12pm)
 
 ## Technical Progress
 

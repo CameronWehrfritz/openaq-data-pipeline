@@ -29,7 +29,7 @@ class SensorManager:
     def _define_sensor_schema(self) -> List[bigquery.SchemaField]:
         """Define the BigQuery schema for the sensor table"""
         return [
-            bigquery.SchemaField("sensor_id", "STRING", mode="REQUIRED", 
+            bigquery.SchemaField("sensor_id", "INTEGER", mode="REQUIRED", 
                                 description="Unique sensor identifier from OpenAQ"),
             bigquery.SchemaField("location_id", "STRING", mode="REQUIRED",
                                 description="Location identifier from OpenAQ"),
@@ -443,58 +443,68 @@ class SensorManager:
         return success
     
     def _update_single_sensor(self, sensor: pd.Series) -> bool:
-        """Update a single sensor record"""
+        """Update a single sensor record using MERGE"""
         sensor_id = sensor.get('sensor_id')
-        
+    
         try:
             # Format timestamps
             datetime_first = self._format_timestamp_for_bq(sensor.get('datetimeFirst'))
             datetime_last = self._format_timestamp_for_bq(sensor.get('datetimeLast'))
             
-            # Build update query
-            update_query = f"""
-            UPDATE `{self.config.PROJECT_ID}.{self.config.DATASET_ID}.{self.config.SENSOR_TABLE_ID}`
-            SET 
-                location_name = @location_name,
-                locality = @locality,
-                is_mobile = @is_mobile,
-                is_monitor = @is_monitor,
-                lat = @lat,
-                lon = @lon,
-                datetimeFirst = @datetimeFirst,
-                datetimeLast = @datetimeLast,
-                updated_at = @updated_at
-            WHERE sensor_id = @sensor_id
+            # Use MERGE instead of UPDATE to avoid streaming buffer issues
+            merge_query = f"""
+            MERGE `{self.config.PROJECT_ID}.{self.config.DATASET_ID}.{self.config.SENSOR_TABLE_ID}` T
+            USING (
+                SELECT 
+                    @sensor_id as sensor_id,
+                    @location_name as location_name,
+                    @locality as locality,
+                    @lat as lat,
+                    @lon as lon,
+                    @datetimeFirst as datetimeFirst,
+                    @datetimeLast as datetimeLast,
+                    @updated_at as updated_at
+            ) S
+            ON T.sensor_id = S.sensor_id
+            WHEN MATCHED THEN
+                UPDATE SET
+                    location_name = S.location_name,
+                    locality = S.locality,
+                    lat = S.lat,
+                    lon = S.lon,
+                    datetimeFirst = S.datetimeFirst,
+                    datetimeLast = S.datetimeLast,
+                    updated_at = S.updated_at
             """
             
-            # Prepare query parameters
+            # Same parameters as before
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
+                    bigquery.ScalarQueryParameter("sensor_id", "INTEGER", sensor_id),
                     bigquery.ScalarQueryParameter("location_name", "STRING", sensor.get('location_name')),
                     bigquery.ScalarQueryParameter("locality", "STRING", sensor.get('locality')),
-                    bigquery.ScalarQueryParameter("is_mobile", "BOOLEAN", sensor.get('is_mobile')),
-                    bigquery.ScalarQueryParameter("is_monitor", "BOOLEAN", sensor.get('is_monitor')),
+                    # DEBUG
+                    # bigquery.ScalarQueryParameter("is_mobile", "BOOLEAN", sensor.get('is_mobile')),
+                    # bigquery.ScalarQueryParameter("is_monitor", "BOOLEAN", sensor.get('is_monitor')),
+                    # POTENTIAL FIX - explicitly convert the boolean values to avoid any pandas/BigQuery type ambiguity
+                    # bigquery.ScalarQueryParameter("is_mobile", "BOOLEAN", bool(sensor.get('is_mobile')) if sensor.get('is_mobile') is not None else None),
+                    # bigquery.ScalarQueryParameter("is_monitor", "BOOLEAN", bool(sensor.get('is_monitor')) if sensor.get('is_monitor') is not None else None),
                     bigquery.ScalarQueryParameter("lat", "FLOAT64", float(sensor.get('lat')) if sensor.get('lat') is not None else None),
                     bigquery.ScalarQueryParameter("lon", "FLOAT64", float(sensor.get('lon')) if sensor.get('lon') is not None else None),
                     bigquery.ScalarQueryParameter("datetimeFirst", "TIMESTAMP", datetime_first),
                     bigquery.ScalarQueryParameter("datetimeLast", "TIMESTAMP", datetime_last),
                     bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc)),
-                    bigquery.ScalarQueryParameter("sensor_id", "STRING", sensor_id),
                 ]
             )
-            
-            # Execute update
-            query_job = self.bq_manager.client.query(update_query, job_config=job_config)
-            query_job.result()  # Wait for completion
-            
-            self.logger.debug(f"Successfully updated sensor {sensor_id}")
+        
+            # Execute merge
+            query_job = self.bq_manager.client.query(merge_query, job_config=job_config)
+            query_job.result()
+        
             return True
-            
-        except GoogleCloudError as e:
-            self.logger.error(f"BigQuery error updating sensor {sensor_id}: {e}")
-            return False
+        
         except Exception as e:
-            self.logger.error(f"Unexpected error updating sensor {sensor_id}: {e}")
+            self.logger.error(f"BigQuery error updating sensor {sensor_id}: {e}")
             return False
     
     def process_sensor_updates(self, fetched_sensors: pd.DataFrame) -> Dict[str, any]:
@@ -528,7 +538,20 @@ class SensorManager:
         # Process new sensors
         new_success = self.insert_new_sensors(new_sensors)
         
-        # Process updated sensors
+        # If we inserted new data, skip updates to avoid streaming buffer issues
+        if len(new_sensors) > 0:
+            self.logger.info("Skipping updates on first run to avoid streaming buffer conflicts")
+            return {
+                "new_sensors": len(new_sensors),
+                "updated_sensors": 0,
+                "total_processed": len(new_sensors),
+                "success": new_success,
+                "fetched_count": len(fetched_sensors),
+                "existing_count": len(existing_sensors),
+                "note": "Updates skipped - run again to process updates"
+            }
+        
+        # Process updates only if no new insertions
         update_success = self.update_existing_sensors(updated_sensors)
         
         # Calculate results
