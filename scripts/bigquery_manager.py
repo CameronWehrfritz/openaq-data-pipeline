@@ -46,10 +46,10 @@ class BigQueryManager:
             # Initialize client
             client = bigquery.Client(project=self.config.PROJECT_ID)
             
-             # 🔍 DEBUG: Check project mismatch
-            print(f"🔍 DEBUG: Config project ID: {self.config.PROJECT_ID}")
-            print(f"🔍 DEBUG: Actual BigQuery client project: {client.project}")
-            print(f"🔍 DEBUG: Project match: {self.config.PROJECT_ID == client.project}")
+             # DEBUG: Check project mismatch
+            print(f"DEBUG: Config project ID: {self.config.PROJECT_ID}")
+            print(f"DEBUG: Actual BigQuery client project: {client.project}")
+            print(f"DEBUG: Project match: {self.config.PROJECT_ID == client.project}")
 
             # Test the connection
             self._test_connection(client)

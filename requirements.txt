@@ -14,6 +14,7 @@ python-dotenv>=1.0.0,<2.0.0
 
 # Google Cloud Platform
 google-cloud-bigquery>=3.11.0,<4.0.0
+db-dtypes>=1.0.0,<2.0.0
 
 # Optional: Better BigQuery Performance (removes warning)
 # Uncomment the line below if you want faster BigQuery operations

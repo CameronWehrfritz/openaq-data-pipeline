@@ -12,7 +12,7 @@ from job_tracker import JobTracker
 
 def fix_job_tracking_table():
     """Fix the job tracking table schema by recreating it properly"""
-    print("🔧 Fixing BigQuery Job Tracking Table Schema...")
+    print("FIXING: Fixing BigQuery Job Tracking Table Schema...")
     
     # Initialize components
     config = PipelineConfig()
@@ -22,19 +22,19 @@ def fix_job_tracking_table():
     
     table_name = f"{config.PROJECT_ID}.{config.JOBS_DATASET_ID}.{config.JOBS_TABLE_ID}"
     
-    print(f"📋 Target table: {table_name}")
+    print(f"TARGET: Target table: {table_name}")
     
     # Step 1: Check current table status
-    print(f"\n📊 Step 1: Checking current job tracking table status...")
+    print(f"\nSTEP 1: Step 1: Checking current job tracking table status...")
     table_exists = bq_manager.table_exists(config.JOBS_DATASET_ID, config.JOBS_TABLE_ID)
     
     if table_exists:
-        print(f"✅ Job tracking table exists - checking current schema...")
+        print(f"SUCCESS: Job tracking table exists - checking current schema...")
         
         # Get current schema
         table_info = bq_manager.get_table_info(config.JOBS_DATASET_ID, config.JOBS_TABLE_ID)
         if table_info:
-            print(f"📝 Current schema ({table_info['num_rows']} rows):")
+            print(f"INFO: Current schema ({table_info['num_rows']} rows):")
             for field in table_info['schema']:
                 print(f"   • {field['name']}: {field['type']} ({field['mode']})")
             
@@ -46,52 +46,52 @@ def fix_job_tracking_table():
             extra_fields = current_fields - required_fields
             
             if missing_fields or extra_fields:
-                print(f"\n❌ Job tracking schema issues detected:")
+                print(f"\nWARNING: Job tracking schema issues detected:")
                 if missing_fields:
                     print(f"   Missing fields: {missing_fields}")
                 if extra_fields:
                     print(f"   Extra fields: {extra_fields}")
                 
                 # Ask for confirmation to delete
-                print(f"\n⚠️  Need to recreate job tracking table with correct schema.")
-                print(f"💾 Current table has {table_info['num_rows']} job records that will be lost.")
+                print(f"\nWARNING:  Need to recreate job tracking table with correct schema.")
+                print(f"DATA: Current table has {table_info['num_rows']} job records that will be lost.")
                 
-                confirm = input("🤔 Proceed with job tracking table recreation? (yes/no): ").lower().strip()
+                confirm = input("CONFIRM: Proceed with job tracking table recreation? (yes/no): ").lower().strip()
                 if confirm not in ['yes', 'y']:
-                    print("❌ Aborted by user")
+                    print("WARNING: Aborted by user")
                     return False
                 
                 # Step 2: Delete old table
-                print(f"\n🗑️  Step 2: Deleting old job tracking table...")
+                print(f"\nDELETE:  Step 2: Deleting old job tracking table...")
                 if bq_manager.delete_table(config.JOBS_DATASET_ID, config.JOBS_TABLE_ID):
-                    print(f"✅ Old job tracking table deleted successfully")
+                    print(f"SUCCESS: Old job tracking table deleted successfully")
                 else:
-                    print(f"❌ Failed to delete old job tracking table")
+                    print(f"WARNING: Failed to delete old job tracking table")
                     return False
             else:
-                print(f"✅ Current job tracking schema is correct!")
+                print(f"SUCCESS: Current job tracking schema is correct!")
                 return True
     else:
-        print(f"ℹ️  Job tracking table doesn't exist - will create new one")
+        print(f"INFO: Job tracking table doesn't exist - will create new one")
     
     # Step 3: Create new table with correct schema
-    print(f"\n🏗️  Step 3: Creating job tracking table with correct schema...")
+    print(f"\nCREATE: Step 3: Creating job tracking table with correct schema...")
     
-    print(f"📝 New job tracking schema will include:")
+    print(f"INFO: New job tracking schema will include:")
     for field in job_tracker.job_schema:
         print(f"   • {field.name}: {field.field_type} ({field.mode}) - {field.description}")
     
     success = job_tracker.ensure_job_tracking_table_exists()
     
     if success:
-        print(f"✅ Job tracking table created successfully!")
+        print(f"SUCCESS: Job tracking table created successfully!")
         
         # Step 4: Verify new schema
-        print(f"\n🔍 Step 4: Verifying new job tracking schema...")
+        print(f"\nVERIFY: Step 4: Verifying new job tracking schema...")
         table_info = bq_manager.get_table_info(config.JOBS_DATASET_ID, config.JOBS_TABLE_ID)
         
         if table_info:
-            print(f"📊 Verified job tracking schema:")
+            print(f"STEP 1: Verified job tracking schema:")
             for field in table_info['schema']:
                 print(f"   • {field['name']}: {field['type']} ({field['mode']})")
             
@@ -100,24 +100,24 @@ def fix_job_tracking_table():
             required_fields = {field.name for field in job_tracker.job_schema}
             
             if required_fields.issubset(current_fields):
-                print(f"\n🎉 SUCCESS! Job tracking table schema is now correct.")
-                print(f"📋 Table ready for job tracking.")
+                print(f"\nCOMPLETE: SUCCESS! Job tracking table schema is now correct.")
+                print(f"TARGET: Table ready for job tracking.")
                 return True
             else:
                 missing = required_fields - current_fields
-                print(f"\n❌ Job tracking schema verification failed - still missing: {missing}")
+                print(f"\nWARNING: Job tracking schema verification failed - still missing: {missing}")
                 return False
         else:
-            print(f"❌ Could not verify new job tracking table schema")
+            print(f"WARNING: Could not verify new job tracking table schema")
             return False
     else:
-        print(f"❌ Failed to create new job tracking table")
+        print(f"WARNING: Failed to create new job tracking table")
         return False
 
 
 def fix_sensors_table():
     """Fix the sensors table schema by recreating it properly"""
-    print("🔧 Fixing BigQuery Sensors Table Schema...")
+    print("FIXING: Fixing BigQuery Sensors Table Schema...")
     
     # Initialize components
     config = PipelineConfig()
@@ -127,19 +127,19 @@ def fix_sensors_table():
     
     table_name = f"{config.PROJECT_ID}.{config.DATASET_ID}.{config.SENSOR_TABLE_ID}"
     
-    print(f"📋 Target table: {table_name}")
+    print(f"TARGET: Target table: {table_name}")
     
     # Step 1: Check current table status
-    print(f"\n📊 Step 1: Checking current table status...")
+    print(f"\nSTEP 1: Step 1: Checking current table status...")
     table_exists = bq_manager.table_exists(config.DATASET_ID, config.SENSOR_TABLE_ID)
     
     if table_exists:
-        print(f"✅ Table exists - checking current schema...")
+        print(f"SUCCESS: Table exists - checking current schema...")
         
         # Get current schema
         table_info = bq_manager.get_table_info(config.DATASET_ID, config.SENSOR_TABLE_ID)
         if table_info:
-            print(f"📝 Current schema ({table_info['num_rows']} rows):")
+            print(f"INFO: Current schema ({table_info['num_rows']} rows):")
             for field in table_info['schema']:
                 print(f"   • {field['name']}: {field['type']} ({field['mode']})")
             
@@ -151,52 +151,52 @@ def fix_sensors_table():
             extra_fields = current_fields - required_fields
             
             if missing_fields or extra_fields:
-                print(f"\n❌ Schema issues detected:")
+                print(f"\nWARNING: Schema issues detected:")
                 if missing_fields:
                     print(f"   Missing fields: {missing_fields}")
                 if extra_fields:
                     print(f"   Extra fields: {extra_fields}")
                 
                 # Ask for confirmation to delete
-                print(f"\n⚠️  Need to recreate table with correct schema.")
-                print(f"💾 Current table has {table_info['num_rows']} rows that will be lost.")
+                print(f"\nWARNING:  Need to recreate table with correct schema.")
+                print(f"DATA: Current table has {table_info['num_rows']} rows that will be lost.")
                 
-                confirm = input("🤔 Proceed with table recreation? (yes/no): ").lower().strip()
+                confirm = input("CONFIRM: Proceed with table recreation? (yes/no): ").lower().strip()
                 if confirm not in ['yes', 'y']:
-                    print("❌ Aborted by user")
+                    print("WARNING: Aborted by user")
                     return False
                 
                 # Step 2: Delete old table
-                print(f"\n🗑️  Step 2: Deleting old table...")
+                print(f"\nDELETE:  Step 2: Deleting old table...")
                 if bq_manager.delete_table(config.DATASET_ID, config.SENSOR_TABLE_ID):
-                    print(f"✅ Old table deleted successfully")
+                    print(f"SUCCESS: Old table deleted successfully")
                 else:
-                    print(f"❌ Failed to delete old table")
+                    print(f"WARNING: Failed to delete old table")
                     return False
             else:
-                print(f"✅ Current schema is correct!")
+                print(f"SUCCESS: Current schema is correct!")
                 return True
     else:
-        print(f"ℹ️  Table doesn't exist - will create new one")
+        print(f"INFO: Table doesn't exist - will create new one")
     
     # Step 3: Create new table with correct schema
-    print(f"\n🏗️  Step 3: Creating table with correct schema...")
+    print(f"\nCREATE: Step 3: Creating table with correct schema...")
     
-    print(f"📝 New schema will include:")
+    print(f"INFO: New schema will include:")
     for field in sensor_manager.sensor_schema:
         print(f"   • {field.name}: {field.field_type} ({field.mode}) - {field.description}")
     
     success = sensor_manager.ensure_sensors_table_exists()
     
     if success:
-        print(f"✅ Table created successfully!")
+        print(f"SUCCESS: Table created successfully!")
         
         # Step 4: Verify new schema
-        print(f"\n🔍 Step 4: Verifying new schema...")
+        print(f"\nVERIFY: Step 4: Verifying new schema...")
         table_info = bq_manager.get_table_info(config.DATASET_ID, config.SENSOR_TABLE_ID)
         
         if table_info:
-            print(f"📊 Verified schema:")
+            print(f"STEP 1: Verified schema:")
             for field in table_info['schema']:
                 print(f"   • {field['name']}: {field['type']} ({field['mode']})")
             
@@ -205,23 +205,23 @@ def fix_sensors_table():
             required_fields = {field.name for field in sensor_manager.sensor_schema}
             
             if required_fields.issubset(current_fields):
-                print(f"\n🎉 SUCCESS! Table schema is now correct.")
-                print(f"📋 Table ready for sensor data insertion.")
+                print(f"\nCOMPLETE: SUCCESS! Table schema is now correct.")
+                print(f"TARGET: Table ready for sensor data insertion.")
                 return True
             else:
                 missing = required_fields - current_fields
-                print(f"\n❌ Schema verification failed - still missing: {missing}")
+                print(f"\nWARNING: Schema verification failed - still missing: {missing}")
                 return False
         else:
-            print(f"❌ Could not verify new table schema")
+            print(f"WARNING: Could not verify new table schema")
             return False
     else:
-        print(f"❌ Failed to create new table")
+        print(f"WARNING: Failed to create new table")
         return False
 
 def show_correct_schema():
     """Show what the correct schema should look like"""
-    print("📋 CORRECT SCHEMA SPECIFICATION:")
+    print("TARGET: CORRECT SCHEMA SPECIFICATION:")
     print("=" * 60)
     
     config = PipelineConfig()
@@ -234,7 +234,7 @@ def show_correct_schema():
 
 def check_job_table_status():
     """Just check the current job tracking table status without making changes"""
-    print("🔍 Checking Current Job Tracking Table Status...")
+    print("VERIFY: Checking Current Job Tracking Table Status...")
     
     config = PipelineConfig()
     logger_setup = PipelineLogger(config)
@@ -245,20 +245,20 @@ def check_job_table_status():
     if table_exists:
         table_info = bq_manager.get_table_info(config.JOBS_DATASET_ID, config.JOBS_TABLE_ID)
         if table_info:
-            print(f"✅ Job tracking table exists with {table_info['num_rows']} rows")
-            print(f"📅 Created: {table_info['created']}")
-            print(f"📝 Current schema:")
+            print(f"SUCCESS: Job tracking table exists with {table_info['num_rows']} rows")
+            print(f"CREATED: {table_info['created']}")
+            print(f"INFO: Current schema:")
             for field in table_info['schema']:
                 print(f"   • {field['name']}: {field['type']} ({field['mode']})")
         else:
-            print(f"❌ Job tracking table exists but could not get info")
+            print(f"WARNING: Job tracking table exists but could not get info")
     else:
-        print(f"❌ Job tracking table does not exist")
+        print(f"WARNING: Job tracking table does not exist")
 
 
 def check_table_status():
     """Just check the current table status without making changes"""
-    print("🔍 Checking Current Table Status...")
+    print("VERIFY: Checking Current Table Status...")
     
     config = PipelineConfig()
     logger_setup = PipelineLogger(config)
@@ -269,15 +269,15 @@ def check_table_status():
     if table_exists:
         table_info = bq_manager.get_table_info(config.DATASET_ID, config.SENSOR_TABLE_ID)
         if table_info:
-            print(f"✅ Table exists with {table_info['num_rows']} rows")
-            print(f"📅 Created: {table_info['created']}")
-            print(f"📝 Current schema:")
+            print(f"SUCCESS: Table exists with {table_info['num_rows']} rows")
+            print(f"CREATED: {table_info['created']}")
+            print(f"INFO: Current schema:")
             for field in table_info['schema']:
                 print(f"   • {field['name']}: {field['type']} ({field['mode']})")
         else:
-            print(f"❌ Table exists but could not get info")
+            print(f"WARNING: Table exists but could not get info")
     else:
-        print(f"❌ Table does not exist")
+        print(f"WARNING: Table does not exist")
 
 if __name__ == "__main__":
     import sys
@@ -301,7 +301,7 @@ if __name__ == "__main__":
             print("  python fix_bigquery_schema.py --fix         # Fix sensors table")
             print("  python fix_bigquery_schema.py --fix-jobs    # Fix job tracking table")
     else:
-        print("🔧 BigQuery Table Schema Fix Tool")
+        print("FIXING: BigQuery Table Schema Fix Tool")
         print("=" * 40)
         print("Options:")
         print("1. Check sensors table status")
