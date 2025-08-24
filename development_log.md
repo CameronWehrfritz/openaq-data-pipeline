@@ -88,17 +88,19 @@ Updated: 2025-08-23
 ---
 
 # Session 2: Schema fixes and BigQuery streaming buffer debugging
-2025-08-24 (8:10am-10:30am)
+2025-08-24 (8:10am-10:40am)
 
-## Technical Progress
+## 1. Technical Progress
 
 - **Schema correction:** Changed sensor_id from STRING to INTEGER based on OpenAQ API documentation
 - **Table recreation:** Dropped and recreated pm25_ca_sensors table with correct schema
-- **Duplicate prevention verified:** Second pipeline run correctly identified 0 new sensors
+- **Duplicate prevention verified:** Second pipeline run (fresh API call) correctly identified 0 new sensors
 - **Update mechanism implemented** Added MERGE-based update logic for existing sensor records
 - **Streaming buffer workaround:** Modified pipeline to skip updates when new data is inserted
 
-## Problem-Solving Documentation
+## 2. Problem-Solving Documentation
+
+### 2.1 Primary Issue: Duplicate Prevention Logic
 
 **Primary Problem:** Duplicate prevention logic failed - repeated API calls inserted duplicate rows     
 **Root Cause:** Schema mismatch (sensor_id STRING vs INTEGER)      
@@ -113,48 +115,51 @@ Updated: 2025-08-23
 - **Actual Root Cause:** BigQuery streaming buffer limitations prevent updates on recently inserted data
 - **Solution:** Logic change to skip updates when new insertions occur, avoiding streaming buffer conflicts
 
-**Secondary Problem:** Update operations failing due to Boolean Parameter Binding (Unresolved)
+### 2.2 Secondary Issue: Boolean Parameter Binding (Unresolved)
+
+**Secondary Problem:** Update operations failing due to Boolean Parameter Binding
 - Error: "Invalid value for type: BOOLEAN is not a valid value"
 - Occurs in MERGE operations regardless of streaming buffer status
 - INSERT behavior with boolean fields not yet verified in current setup
 - Current workaround: Exclude boolean fields from updates
 - Root cause hypothesis: BigQuery parameter binding issue with boolean fields, cause unknown
 
-### Performance Observation:
+### 2.3 Performance Observation
 
 - Individual sensor updates via MERGE: ~2 minutes for 22 sensors (~5.5 seconds per sensor)
 - Indicates need for batch update optimization in future iterations
 
-## Performance Metrics
+## 3. Performance Metrics
 
-- API response time: 1.6-5.5 seconds for 59 sensors
-- Successfully processed sensor updates in ~2 minutes
-- Update success rate: 100% after streaming buffer fix
+- API response time: 1.6-5.5 seconds (59 sensors)
+- Individual sensor updates: ~5.5 seconds per sensor (22 sensors total)
+- Overall update duration: ~2 minutes
+- Update success rate: 100% (post-streaming buffer fix)
 
-## Learning Milestones
+## 4. Learning Milestones
 
 - BigQuery streaming buffer behavior impacts UPDATE/DELETE operations on recently inserted data
 - Misleading error messages can mask underlying infrastructure limitations
 - Systematic debugging with targeted logging reveals true root causes
 - Schema validation against API documentation prevents integration issues
 
-## Time Management
+## 5. Time Management
 
-- first 2 hours was very focused, final half an hour was less efficient
-- next session, take break if exceeding 2 hours to ensure efficiency
+- First 2 hours was very focused, final half hour was less efficient
+- Next session, take 20 minute walk break between 90-120 minute mark to ensure efficiency
 
-## Session Summary
+## 6. Session Summary
 
 - **Key Accomplishments:** Fixed duplicate prevention, implemented working update mechanism, resolved streaming buffer conflicts
 - **Blockers Resolved:** Schema datatype mismatch, BigQuery streaming buffer limitations
-- **Next Session Goals:** batch update optimization for sensors
+- **Next Session Goals:** Investigate bulk MERGE operations
 
 **Technical Debt:** Boolean fields excluded from updates pending resolution of BigQuery MERGE parameter issue
 
 ---
 
-# Session 3: Core class consolidation and OOP implementation
-2025-08-24 (10:30am-12pm)
+# Session 3: Investigate bulk MERGE operations
+2025-08-24 (1:35pm-)
 
 ## Technical Progress
 
