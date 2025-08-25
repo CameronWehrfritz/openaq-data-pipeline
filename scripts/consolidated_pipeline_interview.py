@@ -512,6 +512,17 @@ def main():
     # Compare and identify changes
     new_sensors, updated_sensors = compare_sensors(fetched_sensors, existing_sensors, logger)
     
+    # Row count validation
+    expected_total = len(new_sensors) + len(updated_sensors)
+    fetched_count = len(fetched_sensors)
+    existing_count = len(existing_sensors)
+    
+    logger.info(f"Row count validation - API: {fetched_count}, Database: {existing_count}, Processing: {expected_total}")
+    
+    # Validate data flow integrity
+    if expected_total > fetched_count:
+        logger.warning(f"Processing count ({expected_total}) exceeds fetched count ({fetched_count}) - possible duplicate processing")
+
     # Process new sensors
     new_success = insert_new_sensors(client, new_sensors, logger)
     
