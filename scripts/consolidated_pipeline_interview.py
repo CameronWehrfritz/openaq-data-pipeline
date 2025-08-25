@@ -54,6 +54,13 @@ def format_timestamp_for_bq(timestamp_value, logger: logging.Logger) -> Optional
     """
     Format timestamp for BigQuery insertion - handles OpenAQ timestamp format
     
+    OpenAQ API returns datetime objects with both UTC and local time.
+    This function extracts the UTC timestamp for consistent storage.
+    All timestamps stored in BigQuery are in UTC timezone.
+    
+    OpenAQ follows exclusive time-ending standard: timestamp 03:00 
+    represents data from 02:00-02:59.
+    
     Demonstrates:
     - Robust data type handling for external APIs
     - Error handling for malformed data
@@ -108,7 +115,6 @@ def fetch_sensors_from_openaq_api(logger: logging.Logger) -> pd.DataFrame:
         logger.error("OpenAQ API key not found in environment variables")
         return pd.DataFrame()
 
-    # tbr
     # Create session with exact same headers as working version
     session = requests.Session()
     session.headers.update({
@@ -126,32 +132,14 @@ def fetch_sensors_from_openaq_api(logger: logging.Logger) -> pd.DataFrame:
     }
     
     url = f"{OPENAQ_API_BASE}/locations"
-    
-    # debug logging:
-    # full_url = session.prepare_request(requests.Request('GET', url, params=params)).url
-    # logger.info(f"Full API URL: {full_url}")
-    # logger.info(f"Consolidated script headers: {dict(session.headers)}")
 
     try:
         start_time = time.time()
-        response = session.get(url, params=params, timeout=30)  # uses session # tbr
+        response = session.get(url, params=params, timeout=30)
         response.raise_for_status()
         
         data = response.json()
         locations = data.get('results', [])
-
-        # # Debug logging
-        # logger.info(f"API returned {len(locations)} total locations")
-        # logger.info(f"Consolidated script: First 3 countries: {[loc.get('country') for loc in locations[:3]]}")
-        
-        # if locations:
-        #     sample_location = locations[0]
-        #     logger.info(f"Sample location structure: {list(sample_location.keys())}")
-        #     coords = sample_location.get("coordinates", {})
-        #     logger.info(f"Sample coordinates: {coords}")
-        #     sensors = sample_location.get('sensors', [])
-        #     if sensors:
-        #         logger.info(f"Sample sensor: {sensors[0]}")
         
         # Filter for California sensors
         ca_sensors = []
@@ -160,14 +148,6 @@ def fetch_sensors_from_openaq_api(logger: logging.Logger) -> pd.DataFrame:
             coords = location.get("coordinates", {})
             lat = coords.get("latitude")
             lon = coords.get("longitude")
-            # debug logging:
-            # if lat and lon:
-            #     is_ca = check_in_california(lat, lon)
-            #     if is_ca:
-            #         logger.info(f"Found CA location: {location.get('name')} at ({lat}, {lon})")
-            #     else:
-            #         # Log first few non-CA US locations to debug
-            #         logger.debug(f"US location outside CA: {location.get('name')} at ({lat}, {lon})")
             
             # Check if location is in California
             if lat and lon and check_in_california(lat, lon):
@@ -252,13 +232,13 @@ def create_sensors_table_if_not_exists(client: bigquery.Client, logger: logging.
         bigquery.SchemaField("lon", "FLOAT64", mode="REQUIRED",
                             description="Longitude coordinate"),
         bigquery.SchemaField("datetimeFirst", "TIMESTAMP", mode="NULLABLE",
-                            description="First measurement timestamp from OpenAQ"),
+                            description="First measurement timestamp from OpenAQ API (UTC). Represents exclusive time-ending standard where timestamp indicates end of measurement period."),
         bigquery.SchemaField("datetimeLast", "TIMESTAMP", mode="NULLABLE",
-                            description="Last measurement timestamp from OpenAQ"),
+                            description="Last measurement timestamp from OpenAQ API (UTC). Represents exclusive time-ending standard where timestamp indicates end of measurement period."),
         bigquery.SchemaField("created_at", "TIMESTAMP", mode="REQUIRED",
-                            description="When this record was created in our system"),
+                            description="When this record was created in our system (UTC)"),
         bigquery.SchemaField("updated_at", "TIMESTAMP", mode="REQUIRED",
-                            description="When this record was last updated"),
+                            description="When this record was last updated in our system (UTC)"),
     ]
     
     table_id = f"{PROJECT_ID}.{DATASET_ID}.{SENSOR_TABLE_ID}"
@@ -312,21 +292,27 @@ def compare_sensors(fetched_df: pd.DataFrame, existing_df: pd.DataFrame,
     
     # Identify new sensors
     new_ids = fetched_ids - existing_ids
-    new_sensors = fetched_df[fetched_df['sensor_id'].isin(new_ids)].copy() # tbr
+    new_sensors = fetched_df[fetched_df['sensor_id'].isin(new_ids)].copy()
     
     # Identify potentially updated sensors
-    potentially_updated_ids = fetched_ids & existing_ids # tbr
+    potentially_updated_ids = fetched_ids & existing_ids
     updated_sensors = []
     
-    # tbr
     for sensor_id in potentially_updated_ids:
         fetched_row = fetched_df[fetched_df['sensor_id'] == sensor_id].iloc[0]
         existing_row = existing_df[existing_df['sensor_id'] == sensor_id].iloc[0]
         
         # Format timestamps before comparison
         fetched_last = format_timestamp_for_bq(fetched_row['datetimeLast'], logger)
-        existing_last = existing_row['datetimeLast']  # Already formatted from database
-        
+
+        # Convert existing timestamp to same ISO format
+        existing_last_raw = existing_row['datetimeLast']
+        if pd.notna(existing_last_raw):
+            # Parse and reformat to match fetched format
+            existing_last = pd.to_datetime(existing_last_raw).isoformat()
+        else:
+            existing_last = None     
+
         # Check if sensor needs updating
         if fetched_last != existing_last:
             updated_sensors.append(fetched_row.to_dict())
@@ -520,7 +506,6 @@ def main():
     # Process new sensors
     new_success = insert_new_sensors(client, new_sensors, logger)
     
-    # tbr
     # Process updates (skip if new insertions to avoid streaming buffer conflicts)
     if len(new_sensors) > 0:
         logger.info("Skipping updates to avoid BigQuery streaming buffer conflicts")
