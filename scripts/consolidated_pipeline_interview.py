@@ -278,10 +278,15 @@ def compare_sensors(fetched_df: pd.DataFrame, existing_df: pd.DataFrame,
     Compare fetched sensors with existing ones to identify new and updated sensors
     
     Demonstrates:
+    - Automated QA validation
     - Data validation and duplicate prevention
     - Primary key-based deduplication logic
     - Change detection for incremental updates
     """
+    # Log data completeness metrics
+    null_counts = fetched_df.isnull().sum()
+    logger.info(f"Data completeness check: {null_counts[null_counts > 0].to_dict()}")
+
     if existing_df.empty:
         logger.info("No existing sensors - all fetched sensors are new")
         return fetched_df.copy(), pd.DataFrame()
@@ -313,8 +318,12 @@ def compare_sensors(fetched_df: pd.DataFrame, existing_df: pd.DataFrame,
         else:
             existing_last = None     
 
-        # Check if sensor needs updating
-        if fetched_last != existing_last:
+        # Check if sensor needs updating - only if new timestamp is more recent
+        if fetched_last and existing_last:
+            if pd.to_datetime(fetched_last) > pd.to_datetime(existing_last):
+                updated_sensors.append(fetched_row.to_dict())
+        elif fetched_last and not existing_last:
+        # Handle case where existing sensor has no timestamp but fetched does
             updated_sensors.append(fetched_row.to_dict())
     
     updated_df = pd.DataFrame(updated_sensors)
