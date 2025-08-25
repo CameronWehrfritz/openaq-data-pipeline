@@ -4,8 +4,9 @@ Consolidated script for Peninsula Clean Energy interview
 
 Demonstrates:
 - API data ingestion with rate limiting
-- Data validation and duplicate prevention  
+- Data validation and duplicate prevention
 - Bulk database operations with optimization
+- Automated QA validation (NULL and row counts)
 - Comprehensive logging and error handling
 """
 
@@ -28,6 +29,8 @@ PROJECT_ID = "openaq-data-pipeline-468404"
 DATASET_ID = "openaq_ca"
 SENSOR_TABLE_ID = "pm25_ca_sensors"
 OPENAQ_API_BASE = "https://api.openaq.org/v3"
+API_RATE_LIMIT_REQUESTS_PER_MINUTE = 50  # Conservative buffer under 60/minute limit
+API_REQUEST_INTERVAL = 1.2  # Seconds between requests (60s / 50 requests)
 
 def setup_logging() -> logging.Logger:
     """Initialize logging configuration"""
@@ -134,10 +137,28 @@ def fetch_sensors_from_openaq_api(logger: logging.Logger) -> pd.DataFrame:
     url = f"{OPENAQ_API_BASE}/locations"
 
     try:
+        # Apply rate limiting delay
+        time.sleep(API_REQUEST_INTERVAL)
+
         start_time = time.time()
         response = session.get(url, params=params, timeout=30)
         response.raise_for_status()
+
+        # Log rate limit headers from OpenAQ
+        rate_limit_used = response.headers.get('x-ratelimit-used')
+        rate_limit_remaining = response.headers.get('x-ratelimit-remaining')
+        rate_limit_reset = response.headers.get('x-ratelimit-reset')
         
+        if rate_limit_used and rate_limit_remaining:
+            logger.info(f"API rate limit: {rate_limit_used} used, {rate_limit_remaining} remaining")
+            
+        # Warn if approaching limit
+        if rate_limit_remaining and int(rate_limit_remaining) < 10:
+            logger.warning(f"Approaching rate limit: only {rate_limit_remaining} requests remaining")
+        
+        end_time = time.time()
+        logger.info(f"API call completed in {end_time - start_time:.2f} seconds")
+
         data = response.json()
         locations = data.get('results', [])
         
@@ -181,8 +202,6 @@ def fetch_sensors_from_openaq_api(logger: logging.Logger) -> pd.DataFrame:
                         }
                         ca_sensors.append(sensor_data)
         
-        end_time = time.time()
-        logger.info(f"API call completed in {end_time - start_time:.2f} seconds")
         logger.info(f"Found {len(ca_sensors)} PM2.5 sensors in California")
         
         return pd.DataFrame(ca_sensors)
