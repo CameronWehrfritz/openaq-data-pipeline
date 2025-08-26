@@ -304,7 +304,11 @@ def compare_sensors(fetched_df: pd.DataFrame, existing_df: pd.DataFrame,
     """
     # Log data completeness metrics
     null_counts = fetched_df.isnull().sum()
-    logger.info(f"Data completeness check: {null_counts[null_counts > 0].to_dict()}")
+    missing_data = null_counts[null_counts > 0]
+    if not missing_data.empty:
+        logger.info(f"Data quality monitoring - NULL values found: {missing_data.to_dict()}")
+    else:
+        logger.info("Data quality monitoring - No NULL values detected")
 
     if existing_df.empty:
         logger.info("No existing sensors - all fetched sensors are new")
