@@ -4,7 +4,7 @@ This development log documents my design and debugging process for the OpenAQ pi
 
 Author: Cameron Wehrfritz   
 Created: 2025-08-23     
-Updated: 2025-08-23 
+Updated: 2025-08-25
 
 ---
 
@@ -237,46 +237,77 @@ Invalid value for type: STRUCT<sensor_id INT64, location_name STRING, locality S
 
 ---
 
-# Session 4: Integration testing and error handling
+# Session 4: Consolidate core functionality into a single consolidated script for interview
 2025-08-25 (8am-12pm)
 
 ## 1. Technical Progress
 
-## 2. Problem-Solving Documentation
+- Consolidated core functionality from class-based version into a single script for interview
+- Focused on core data engineering concepts and readability
 
-## 3. Performance Metrics
+## 2. Time Management
 
-## 4. Learning Milestones
+- Efficient extended 4-hour session
+- Split session with 30-minute walking break; helped maintain focus in second half of session
 
-## 5. Time Management
+## 3. Session Summary
 
-- 4 hour session, did I take at least one 20+ minute walk break?
-
-## 6. Session Summary
-
-- **Key Accomplishments:** What major components were completed
-- **Blockers Identified:** What needs attention next session
-- **Next Session Goals:** Clear objectives for the following work period
+- **Key Accomplishments:** Consolidated core functionality into a single script
+- **Blockers Identified:** Timestamp comparison causing false positive updates
+- **Next Session Goals:** 
+  1. Fix timestamp comparison causing false positive updates
+  2. Add additional features:
+    - API rate limiting
+    - NULL value reporting
+    - row count validation and monitoring
 
 ---
 
-# Session 5: Final optimization and documentation cleanup
-2025-08-25 (2pm-5pm)
+# Session 5: Implement final features for interview demo
+2025-08-25 (2:30pm-5pm)
 
 ## 1. Technical Progress
 
+### 1.1 Fixed false positives in timestamp comparison
+
+- Normalized both API and database timestamps to ISO format before
+comparison
+- Eliminated unnecessary bulk updates when data unchanged
+
+### 1.2 Improved pipeline robustness and data quality monitoring
+- Implemented API rate limiting to ensure compliance with OpenAQ API usage policies and prevent request failures
+- Added NULL value reporting for improved data quality monitoring and debugging
+- Introduced row count validation and monitoring to track ingestion consistency and detect pipeline anomalies
+
 ## 2. Problem-Solving Documentation
+
+- Resolved timestamp mismatch issue by identifying format discrepancies between API and BigQuery
+- Decided to use ISO normalization instead of schema changes to maintain compatibility with existing tables
 
 ## 3. Performance Metrics
 
+- Confirmed pipeline ingests ~59 sensors in <5s with rate-limiting enabled
+- Validated row counts remain consistent across test runs
+
 ## 4. Learning Milestones
+
+- Gained deeper understanding of practical API rate-limiting strategies.
+- Strengthened skills in logging and monitoring for data pipelines (standard logging levels in Python's built in logging module: DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
 
 ## 5. Time Management
 
+- Efficient 2.5-hour session
+- Allocated ~1 hour to debugging timestamp mismatch
+- Spent ~1.5 hours implementing and testing robustness features
+- Reserved final 30 min for documentation and commit preparation
+
 ## 6. Session Summary
 
-- **Key Accomplishments:** What major components were completed
-- **Blockers Identified:** What needs attention next session
-- **Next Session Goals:** Clear objectives for the following work period
+- **Key Accomplishments:**
+  1. Fix timestamp comparison causing false positive updates
+  2. Implemented API rate limiting, NULL value reporting and row count validation and monitoring
+- **Blockers Identified:** None
+- **Next Session Goals:** Add explanatory comments for interview walkthrough
 
 ---
