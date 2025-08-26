@@ -42,18 +42,19 @@ OpenAQ API → Data Processing → BigQuery → Analytics/Dashboards
 ```
 openaq_pipeline_project/
 ├── scripts/
-│   ├── sensor_discovery_pipeline.py    # Main pipeline script
-│   ├── pipeline_config.py              # Configuration management
-│   ├── bigquery_manager.py             # BigQuery operations
-│   ├── openaq_client.py                # API client with retry logic
-│   ├── sensor_manager.py               # Business logic & data processing
-│   ├── job_tracker.py                  # Pipeline monitoring
-│   ├── logger.py                       # Logging configuration
-│   └── cleanup_data.py                 # Data maintenance utilities
-├── logs/                               # Pipeline execution logs
-├── requirements.txt                    # Python dependencies
-├── .env.example                        # Environment variables template
-└── README.md                          # This file
+│   ├── consolidated_pipeline_interview.py   # Consolidated pipeline for interview
+│   ├── sensor_discovery_pipeline.py         # Main pipeline script
+│   ├── pipeline_config.py                   # Configuration management
+│   ├── bigquery_manager.py                  # BigQuery operations
+│   ├── openaq_client.py                     # API client with retry logic
+│   ├── sensor_manager.py                    # Business logic & data processing
+│   ├── job_tracker.py                       # Pipeline monitoring
+│   ├── logger.py                            # Logging configuration
+│   └── cleanup_data.py                      # Data maintenance utilities
+├── logs/                                    # Pipeline execution logs
+├── requirements.txt                         # Python dependencies
+├── .env.example                             # Environment variables template
+└── README.md
 ```
 
 ## ⚙️ Setup & Installation
@@ -138,7 +139,7 @@ The pipeline discovers and tracks:
 ## 📈 Data Schema
 
 ### Sensors Table (`pm25_ca_sensors`)
-- `sensor_id` (STRING): Unique sensor identifier
+- `sensor_id` (INTEGER): Unique sensor identifier
 - `location_name` (STRING): Human-readable location
 - `lat`, `lon` (FLOAT64): Geographic coordinates  
 - `datetimeFirst`, `datetimeLast` (TIMESTAMP): Data availability window
