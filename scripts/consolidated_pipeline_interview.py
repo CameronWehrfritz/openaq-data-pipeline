@@ -2,10 +2,15 @@
 OpenAQ PM2.5 Sensor Data Pipeline
 Consolidated script for Peninsula Clean Energy interview
 
-Demonstrates:
-- API data ingestion with rate limiting
-- Data validation and duplicate prevention
-- Bulk database operations with optimization
+Overview:
+Scalable sensor metadata pipeline that discovers and maintains PM2.5 sensor inventory for California:
+1) Identifies new sensors from OpenAQ API and registers them in BigQuery
+2) Updates existing sensor records with latest measurement timestamps for freshness tracking
+
+Key Technical Achievements:
+- API data ingestion with rate limiting and monitoring
+- Data validation and duplicate prevention with chronological timestamp checks
+- Bulk database MERGE operation (25x performance improvement)
 - Automated QA validation (NULL and row counts)
 - Comprehensive logging and error handling
 """
@@ -48,7 +53,6 @@ def connect_to_bigquery() -> bigquery.Client:
     else:
         return bigquery.Client(project=PROJECT_ID)
 
-
 def check_in_california(lat, lon) -> bool:
     """Geographic filter: California locations"""
     return 32.5 <= lat <= 42.0 and -124.5 <= lon <= -114.0 # Approximate bounding box for CA
@@ -68,6 +72,7 @@ def format_timestamp_for_bq(timestamp_value, logger: logging.Logger) -> Optional
     - Robust data type handling for external APIs
     - Error handling for malformed data
     - Data validation and transformation
+    - Timezone normalization to UTC
     """
     if timestamp_value is None or pd.isna(timestamp_value):
         return None
@@ -103,12 +108,14 @@ def format_timestamp_for_bq(timestamp_value, logger: logging.Logger) -> Optional
 
 def fetch_sensors_from_openaq_api(logger: logging.Logger) -> pd.DataFrame:
     """
-    Fetch PM2.5 sensor data from OpenAQ API for California
+    Fetch PM2.5 sensor data from OpenAQ API with rate limiting and geographic filtering
     
     Demonstrates:
-    - API integration with proper error handling
-    - Rate limiting respect
-    - Data transformation for downstream processing
+    - External API integration with authentication and error handling
+    - Rate limiting to prevent service overload (respects 60/min limit)
+    - Geographic filtering using coordinate bounding boxes
+    - Data transformation from nested JSON to structured DataFrame
+    - Production-ready logging and performance monitoring
     """
     logger.info("Fetching PM2.5 sensor data from OpenAQ API...")
     
@@ -122,10 +129,9 @@ def fetch_sensors_from_openaq_api(logger: logging.Logger) -> pd.DataFrame:
     session = requests.Session()
     session.headers.update({
         "accept": "application/json",
-        "X-API-Key": api_key,
-        "User-Agent": "OpenAQ-Pipeline/1.0 (Data Engineering Project)"
+        "X-API-Key": api_key
     })
-    
+
     # API parameters
     params = {
         "country": "US",
@@ -294,13 +300,12 @@ def load_existing_sensors(client: bigquery.Client, logger: logging.Logger) -> pd
 def compare_sensors(fetched_df: pd.DataFrame, existing_df: pd.DataFrame, 
                    logger: logging.Logger) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Compare fetched sensors with existing ones to identify new and updated sensors
+    Compare fetched sensors with existing ones using automated data quality validation
     
     Demonstrates:
-    - Automated QA validation
-    - Data validation and duplicate prevention
     - Primary key-based deduplication logic
-    - Change detection for incremental updates
+    - Change detection with chronological timestamp validation (prevents backward time updates)
+    - Automated QA monitoring (NULL value detection, row count validation)
     """
     # Log data completeness metrics
     null_counts = fetched_df.isnull().sum()
@@ -355,7 +360,15 @@ def compare_sensors(fetched_df: pd.DataFrame, existing_df: pd.DataFrame,
     return new_sensors, updated_df
 
 def prepare_sensor_data(sensors_df: pd.DataFrame, logger: logging.Logger, is_update: bool = False) -> List[Dict]:
-    """Prepare sensor data for BigQuery insertion with proper timestamp formatting"""
+    """
+    Prepare sensor data for timestamp-only updates in bulk operations
+    
+    Demonstrates:
+    - Data preparation optimization (only fields that change)
+    - Timestamp formatting consistency with format_timestamp_for_bq()
+    - Memory-efficient data structures for bulk operations
+    - Separation of concerns (updates vs full inserts)
+    """
     if sensors_df.empty:
         return []
     
@@ -435,12 +448,13 @@ def insert_new_sensors(client: bigquery.Client, new_sensors: pd.DataFrame,
 def bulk_update_sensors(client: bigquery.Client, updated_sensors: pd.DataFrame, 
                        logger: logging.Logger) -> bool:
     """
-    Bulk update sensors using temporary table + MERGE approach
+    Bulk update sensors using temporary table + MERGE strategy
     
     Demonstrates:
     - Performance optimization (25x speedup vs individual updates)
-    - Bulk DML operations using temporary tables
-    - Automatic cleanup and error handling
+    - Temporary table strategy for bulk DML operations
+    - Automatic resource cleanup and error handling
+    - Production-ready transaction patterns
     """
     if updated_sensors.empty:
         logger.info("No sensors to update")
@@ -506,10 +520,21 @@ def bulk_update_sensors(client: bigquery.Client, updated_sensors: pd.DataFrame,
         return False
 
 def main():
-    """Main pipeline orchestration"""
+    """
+    Main pipeline orchestration - demonstrates end-to-end data engineering workflow
+    
+    Pipeline stages:
+    1. Infrastructure setup (BigQuery connection, table validation)
+    2. Data ingestion (API fetch with rate limiting)
+    3. Data quality validation (comparison, NULL checks, row counts)
+    4. Data flow integrity validation (row count verification)
+    5. Efficient data loading (bulk inserts/updates with performance optimization)
+    6. Pipeline summary and success reporting
+    """
     logger = setup_logging()
     logger.info("Starting OpenAQ PM2.5 Sensor Discovery Pipeline")
     
+    # Stage 1: Infrastructure validation
     # Initialize BigQuery client
     try:
         client = connect_to_bigquery()
@@ -523,18 +548,21 @@ def main():
         logger.error("Failed to ensure sensors table exists")
         return
     
+    # Stage 2: Data ingestion with rate limiting
     # Fetch sensor data from API
     fetched_sensors = fetch_sensors_from_openaq_api(logger)
     if fetched_sensors.empty:
         logger.error("No sensors fetched from API")
         return
     
+    # Stage 3: Data quality validation and change detection
     # Load existing sensors for comparison
     existing_sensors = load_existing_sensors(client, logger)
     
     # Compare and identify changes
     new_sensors, updated_sensors = compare_sensors(fetched_sensors, existing_sensors, logger)
     
+    # Stage 4: Data flow integrity validation
     # Row count validation
     expected_total = len(new_sensors) + len(updated_sensors)
     fetched_count = len(fetched_sensors)
@@ -546,6 +574,7 @@ def main():
     if expected_total > fetched_count:
         logger.warning(f"Processing count ({expected_total}) exceeds fetched count ({fetched_count}) - possible duplicate processing")
 
+    # Stage 5: Efficient data loading operations
     # Process new sensors
     new_success = insert_new_sensors(client, new_sensors, logger)
     
@@ -556,7 +585,7 @@ def main():
     else:
         update_success = bulk_update_sensors(client, updated_sensors, logger)
     
-    # Summary
+    # Stage 6: Pipeline summary and success reporting
     total_processed = len(new_sensors) + len(updated_sensors)
     overall_success = new_success and update_success
     
