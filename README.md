@@ -2,7 +2,7 @@
 
 An enterprise-grade data engineering pipeline that discovers and tracks PM2.5 air quality sensors in California using the OpenAQ API and BigQuery.
 
-## 🏗️ Architecture
+## Architecture
 
 This pipeline demonstrates modern data engineering practices with:
 
@@ -12,7 +12,7 @@ This pipeline demonstrates modern data engineering practices with:
 - **Data Quality**: Schema validation, type checking, and data validation
 - **Configuration Management**: Environment-aware, easily configurable settings
 
-## 📊 Data Flow
+## Data Flow
 
 ```
 OpenAQ API → Data Processing → BigQuery → Analytics/Dashboards
@@ -20,7 +20,7 @@ OpenAQ API → Data Processing → BigQuery → Analytics/Dashboards
   PM2.5 Sensors → Validation → Storage → Insights
 ```
 
-## 🚀 Key Features
+## Key Features
 
 - **Automatic Sensor Discovery**: Finds new PM2.5 sensors in California
 - **Intelligent Updates**: Only processes new or changed sensor data
@@ -29,7 +29,7 @@ OpenAQ API → Data Processing → BigQuery → Analytics/Dashboards
 - **Job Monitoring**: Complete pipeline observability and metrics
 - **Schema Management**: Automated BigQuery table creation and validation
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Python 3.9+** - Core language
 - **OpenAQ API v3** - Air quality data source
@@ -37,7 +37,7 @@ OpenAQ API → Data Processing → BigQuery → Analytics/Dashboards
 - **Pandas** - Data manipulation
 - **Google Cloud SDK** - Cloud integration
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 openaq_pipeline_project/
@@ -57,7 +57,7 @@ openaq_pipeline_project/
 └── README.md
 ```
 
-## ⚙️ Setup & Installation
+## Setup & Installation
 
 ### Prerequisites
 - Python 3.9+
@@ -99,7 +99,7 @@ GOOGLE_APPLICATION_CREDENTIALS=path\to\your\service-account.json
 PIPELINE_ENV=production
 ```
 
-## 🚀 Usage
+## Usage
 
 ### Run the Pipeline
 ```bash
@@ -111,32 +111,22 @@ python scripts\sensor_discovery_pipeline.py
 python scripts\fix_bigquery_schema.py --check
 ```
 
-### Clean Up Data
-```bash
-python scripts\cleanup_data.py
-```
-
-### Debug API Issues
-```bash
-python scripts\debug_openaq_data.py --large-sample
-```
-
-## 📊 Pipeline Results
+## Pipeline Results
 
 The pipeline discovers and tracks:
 - **59 PM2.5 sensors** across California
 - **Sensor metadata**: Location, ownership, operational status
 - **Geographic coverage**: Full California state with lat/lon coordinates
-- **Data freshness**: Tracks first and last measurement timestamps
+- **Data freshness**: Tracks last measurement timestamps
 
-## 🔍 Monitoring & Observability
+## Monitoring & Observability
 
 - **Comprehensive Logging**: All operations logged with timestamps
 - **Job Tracking**: Every pipeline run tracked in BigQuery
 - **Metrics Collection**: API usage, processing times, data quality
 - **Error Handling**: Graceful failures with detailed error reporting
 
-## 📈 Data Schema
+## Data Schema
 
 ### Sensors Table (`pm25_ca_sensors`)
 - `sensor_id` (INTEGER): Unique sensor identifier
@@ -151,7 +141,7 @@ The pipeline discovers and tracks:
 - `duration_seconds` (FLOAT64): Execution time
 - `sensors_processed` (INTEGER): Processing metrics
 
-## 🔧 Development
+## Development
 
 ### Module Testing
 Each module can be tested independently:
@@ -167,7 +157,7 @@ The modular architecture makes it easy to extend:
 - Extend business logic in `sensor_manager.py`
 - Add new metrics in `job_tracker.py`
 
-## 📝 Future Enhancements
+## Future Enhancements
 
 - [ ] Hourly measurement data collection
 - [ ] Real-time data streaming
@@ -176,15 +166,15 @@ The modular architecture makes it easy to extend:
 - [ ] Multi-state geographic expansion
 - [ ] Data quality alerts and monitoring
 
-## 🤝 Contributing
+## Contributing
 
 This is a portfolio project demonstrating data engineering best practices. Key principles:
-- Clean, modular architecture
+- Modular, class-based architecture
 - Comprehensive error handling
 - Production-ready monitoring
 - Professional documentation
 
-## 📄 License
+## License
 
 This project is for educational and portfolio purposes.
 

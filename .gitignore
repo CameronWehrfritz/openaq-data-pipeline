@@ -27,3 +27,6 @@ Thumbs.db
 
 *.ipynb
 notebooks/
+
+# Archived scripts
+scripts/archive/
