@@ -10,7 +10,7 @@ Scalable sensor metadata pipeline that discovers and maintains PM2.5 sensor inve
 Key Technical Achievements:
 - API data ingestion with rate limiting and monitoring
 - Data validation and duplicate prevention with chronological timestamp checks
-- Bulk database MERGE operation (25x performance improvement)
+- Bulk database MERGE operation with UUID temp table creation to prevent collision
 - Automated QA validation (NULL and row counts)
 - Comprehensive logging and error handling
 """
