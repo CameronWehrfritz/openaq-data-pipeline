@@ -3,7 +3,8 @@ Pipeline Configuration Module
 Contains all configuration constants and settings for the OpenAQ pipeline
 """
 
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, field
 from typing import Optional
 
 
@@ -25,6 +26,7 @@ class PipelineConfig:
     CA_LON_MAX: float = -114.0
     
     # BigQuery Configuration
+    PROJECT_ID: str = field(default_factory=lambda: os.getenv('PROJECT_ID', ''))
     PROJECT_ID: str = "openaq-data-pipeline-468404"
     DATASET_ID: str = "openaq_ca"
     JOBS_DATASET_ID: str = "openaq_jobs"
@@ -73,7 +75,7 @@ class PipelineConfig:
         return True
 
 
-# You could also create specialized configs for different environments
+# specialized configs for different environments
 @dataclass
 class DevelopmentConfig(PipelineConfig):
     """Development environment configuration"""
@@ -81,6 +83,14 @@ class DevelopmentConfig(PipelineConfig):
     LOG_LEVEL: str = "DEBUG"
     PROJECT_ID: str = "openaq-data-pipeline-dev"
 
+@dataclass
+class TestingConfig(PipelineConfig):
+    """Testing environment configuration"""
+    API_REQUEST_LIMIT: int = 500  # Between dev and prod
+    LOG_LEVEL: str = "INFO"
+    PROJECT_ID: str = "openaq-data-pipeline-test"
+    MAX_RETRIES: int = 3
+    # Might use test datasets or sanitized production data
 
 @dataclass
 class ProductionConfig(PipelineConfig):
@@ -94,6 +104,8 @@ def get_config(environment: str = "production") -> PipelineConfig:
     """Factory function to get appropriate config based on environment"""
     if environment.lower() == "development":
         return DevelopmentConfig()
+    elif environment.lower() == "testing":
+        return TestingConfig()
     elif environment.lower() == "production":
         return ProductionConfig()
     else:

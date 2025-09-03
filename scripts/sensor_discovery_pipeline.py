@@ -14,12 +14,13 @@ Author: Cameron Wehrfritz
 Date: 2025-08-11
 """
 
+import os
 import sys
 import logging
 from typing import Dict
 
 # Import pipeline components
-from pipeline_config import PipelineConfig
+from pipeline_config import PipelineConfig, get_config
 from logger import PipelineLogger
 from bigquery_manager import BigQueryManager
 from openaq_client import OpenAQClient
@@ -39,8 +40,10 @@ def main() -> int:
     job_tracker = None
     
     try:
-        # Initialize configuration
-        config = PipelineConfig()
+        # Initialize configuration based on environment
+        environment = os.getenv('ENVIRONMENT', 'production')
+        config = get_config(environment)
+        config.validate()
         
         # Setup logging
         logger_setup = PipelineLogger(config)
