@@ -5,7 +5,7 @@ Contains all configuration constants and settings for the OpenAQ pipeline
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
@@ -18,7 +18,8 @@ class PipelineConfig:
     API_REQUEST_LIMIT: int = 1000
     API_TIMEOUT: int = 30
     MAX_RETRIES: int = 3
-    RETRY_DELAY: int = 1
+    RETRY_DELAY: float = 1.0
+    REQUIRED_SENSOR_FIELDS: List[str] = field(default_factory=lambda: ["sensor_id", "location_id", "lat", "lon"])
 
     # Geographic Boundaries - California bounding box coordinates
     CA_LAT_MIN: float = 32.5
@@ -28,7 +29,6 @@ class PipelineConfig:
     
     # BigQuery Configuration
     PROJECT_ID: str = field(default_factory=lambda: os.getenv('PROJECT_ID', ''))
-    PROJECT_ID: str = "openaq-data-pipeline-468404"
     DATASET_ID: str = "openaq_ca"
     JOBS_DATASET_ID: str = "openaq_jobs"
     
