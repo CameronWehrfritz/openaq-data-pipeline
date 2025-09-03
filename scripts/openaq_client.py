@@ -11,7 +11,6 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
 
 from pipeline_config import PipelineConfig
-from config import OPENAQ_API_KEY
 
 
 class OpenAQClient:
@@ -31,12 +30,12 @@ class OpenAQClient:
         # Set headers
         session.headers.update({
             "accept": "application/json",
-            "X-API-Key": OPENAQ_API_KEY,
+            "X-API-Key": self.config.OPENAQ_API_KEY,
             "User-Agent": f"OpenAQ-Pipeline/1.0 (Data Engineering Project)"
         })
         
         # Validate API key
-        if not OPENAQ_API_KEY or OPENAQ_API_KEY == "your_api_key_here":
+        if not self.config.OPENAQ_API_KEY or len(self.config.OPENAQ_API_KEY) < 10:
             raise ValueError(
                 "OpenAQ API key not found or invalid. "
                 "Please set OPENAQ_API_KEY in your .env file"
@@ -92,11 +91,29 @@ class OpenAQClient:
                 raise requests.exceptions.HTTPError(
                     f"Forbidden (403): API key may not have required permissions"
                 )
-                
+            
+            elif response.status_code == 404:  # Not Found
+                self.logger.warning(f"Resource not found (404): {url}")
+                raise requests.exceptions.HTTPError(
+                    f"API endpoint not found (404): {url} may be invalid or deprecated"
+                )
+            
+            elif response.status_code == 408:  # Request Timeout
+                self.logger.warning(f"Server timeout (408) - query too complex (attempt {attempt})")
+                if attempt <= self.config.MAX_RETRIES:
+                    time.sleep(self.config.RETRY_DELAY * attempt)  # Linear backoff
+                    return self._make_request(url, params, attempt + 1)
+            
+            elif response.status_code == 422:  # Unprocessable content
+                self.logger.error(f"Invalid query parameters (422): {params}")
+                raise requests.exceptions.HTTPError(
+                    f"Unprocessable request (422): Query parameters may be invalid"
+                )
+
             elif response.status_code >= 500:  # Server errors
                 self.logger.warning(f"Server error {response.status_code} (attempt {attempt})")
                 if attempt <= self.config.MAX_RETRIES:
-                    wait_time = self.config.RETRY_DELAY * attempt
+                    wait_time = self.config.RETRY_DELAY * attempt   # Linear backoff
                     time.sleep(wait_time)
                     return self._make_request(url, params, attempt + 1)
                     
@@ -110,19 +127,19 @@ class OpenAQClient:
         except requests.exceptions.Timeout:
             self.logger.warning(f"Request timeout (attempt {attempt}/{self.config.MAX_RETRIES})")
             if attempt <= self.config.MAX_RETRIES:
-                time.sleep(self.config.RETRY_DELAY * attempt)
+                time.sleep(self.config.RETRY_DELAY * attempt)   # Linear backoff
                 return self._make_request(url, params, attempt + 1)
                 
         except requests.exceptions.ConnectionError as e:
             self.logger.warning(f"Connection error (attempt {attempt}): {e}")
             if attempt <= self.config.MAX_RETRIES:
-                time.sleep(self.config.RETRY_DELAY * attempt)
+                time.sleep(self.config.RETRY_DELAY * attempt)   # Linear backoff
                 return self._make_request(url, params, attempt + 1)
                 
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Request failed (attempt {attempt}): {e}")
             if attempt <= self.config.MAX_RETRIES:
-                time.sleep(self.config.RETRY_DELAY * (2 ** attempt))
+                time.sleep(self.config.RETRY_DELAY * (2 ** attempt))   # Exponential backoff
                 return self._make_request(url, params, attempt + 1)
         
         self.logger.error(f"All retry attempts failed for {url}")
@@ -143,7 +160,7 @@ class OpenAQClient:
         Returns:
             bool: True if sensor data is valid
         """
-        required_fields = ["sensor_id", "location_id", "lat", "lon"]
+        required_fields = self.config.REQUIRED_SENSOR_FIELDS
         
         # Check required fields exist and are not None/empty
         for field in required_fields:
