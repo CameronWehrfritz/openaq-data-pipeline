@@ -13,12 +13,13 @@ class PipelineConfig:
     """Configuration class for the OpenAQ pipeline"""
     
     # OpenAQ API Configuration
+    OPENAQ_API_KEY = os.getenv('OPENAQ_API_KEY')
     OPENAQ_API_BASE: str = "https://api.openaq.org/v3"
     API_REQUEST_LIMIT: int = 1000
     API_TIMEOUT: int = 30
     MAX_RETRIES: int = 3
     RETRY_DELAY: int = 1
-    
+
     # Geographic Boundaries - California bounding box coordinates
     CA_LAT_MIN: float = 32.5
     CA_LAT_MAX: float = 42.0
