@@ -286,15 +286,13 @@ class OpenAQClient:
                     continue
             
             # Check pagination
-            meta = data.get("meta", {})
             current_page = params["page"]
-            total_pages = meta.get("totalPages", 1)
-            
-            self.logger.info(f"Page {current_page}/{total_pages}: {len(locations)} locations, "
+            self.logger.info(f"Page {current_page}: {len(locations)} locations, "
                            f"{ca_locations_found} CA locations, {len(sensors)} PM2.5 sensors found so far")
             
             # Check if we should continue
-            if current_page >= total_pages:
+            if len(locations) < self.config.API_REQUEST_LIMIT:
+                # Got fewer locations than requested - this is the last page
                 break
                 
             params["page"] += 1
