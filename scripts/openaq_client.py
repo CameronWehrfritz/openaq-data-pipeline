@@ -311,30 +311,32 @@ class OpenAQClient:
         
         return pd.DataFrame(sensors)
     
-    def fetch_sensor_measurements(self, sensor_id: str, start_date: str = None, 
+    def fetch_sensor_hourly_measurements (self, sensor_id: str, start_date: str = None, 
                                  end_date: str = None, limit: int = 1000) -> pd.DataFrame:
         """
-        Fetch measurements for a specific sensor (for future use)
+        Fetch hourly measurements for a specific sensor (for future use)
+        
+        Uses OpenAQ v3 endpoint: /v3/sensors/{sensor_id}/measurements/hourly
+        Returns hourly-averaged measurement data rather than raw sensor readings.
         
         Args:
             sensor_id: The sensor ID to fetch data for
-            start_date: Start date in ISO format (YYYY-MM-DD)
-            end_date: End date in ISO format (YYYY-MM-DD)
+            start_date: Start datetime in ISO format (YYYY-MM-DDTHH:MM:SS)
+            end_date: End datetime in ISO format (YYYY-MM-DDTHH:MM:SS)
             limit: Maximum number of measurements to fetch
-            
+
         Returns:
             pandas.DataFrame: Sensor measurements
         """
-        url = f"{self.config.OPENAQ_API_BASE}/measurements"
+        url = f"{self.config.OPENAQ_API_BASE}/sensors/{sensor_id}/measurements/hourly"
         params = {
-            "sensors_id": sensor_id,
             "limit": min(limit, self.config.API_REQUEST_LIMIT)
         }
         
         if start_date:
-            params["date_from"] = start_date
+            params["datetime_from"] = start_date
         if end_date:
-            params["date_to"] = end_date
+            params["datetime_to"] = end_date
         
         self.logger.info(f"Fetching measurements for sensor {sensor_id}")
         
