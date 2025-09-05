@@ -7,7 +7,6 @@ import os
 import logging
 import pandas as pd
 from typing import Dict, List, Optional
-from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound, GoogleCloudError
 
@@ -26,7 +25,6 @@ class BigQueryManager:
         """Initialize BigQuery client with comprehensive error handling"""
         try:
             # Load environment variables
-            load_dotenv()
             credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
             
             # Validate credentials

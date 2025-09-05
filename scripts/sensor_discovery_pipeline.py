@@ -14,6 +14,9 @@ Author: Cameron Wehrfritz
 Date: 2025-08-11
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import sys
 import logging

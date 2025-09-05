@@ -23,6 +23,10 @@ class OpenAQClient:
         self.request_count = 0
         self.start_time = datetime.now()
     
+    def __str__(self):
+        uptime = (datetime.now() - self.start_time).seconds
+        return f"OpenAQClient(requests: {self.request_count}, API: {self.config.OPENAQ_API_BASE}, uptime: {uptime}s, API key: {bool(self.config.OPENAQ_API_KEY)})"
+
     def _create_session(self) -> requests.Session:
         """Create a requests session with proper headers and configuration"""
         session = requests.Session()
