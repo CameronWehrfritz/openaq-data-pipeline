@@ -318,7 +318,7 @@ class OpenAQClient:
         
         Uses OpenAQ v3 endpoint: /v3/sensors/{sensor_id}/measurements/hourly
         Returns hourly-averaged measurement data rather than raw sensor readings.
-        
+
         Args:
             sensor_id: The sensor ID to fetch data for
             start_date: Start datetime in ISO format (YYYY-MM-DDTHH:MM:SS)
@@ -338,15 +338,15 @@ class OpenAQClient:
         if end_date:
             params["datetime_to"] = end_date
         
-        self.logger.info(f"Fetching measurements for sensor {sensor_id}")
+        self.logger.info(f"Fetching hourly measurements for sensor {sensor_id}")
         
         data = self._make_request(url, params)
         if not data:
-            self.logger.error(f"Failed to fetch measurements for sensor {sensor_id}")
+            self.logger.error(f"Failed to fetch hourly measurements for sensor {sensor_id}")
             return pd.DataFrame()
         
         measurements = data.get("results", [])
-        self.logger.info(f"Retrieved {len(measurements)} measurements for sensor {sensor_id}")
+        self.logger.info(f"Retrieved {len(measurements)} hourly measurements for sensor {sensor_id}")
         
         return pd.DataFrame(measurements)
     
