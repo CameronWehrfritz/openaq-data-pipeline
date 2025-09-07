@@ -114,7 +114,7 @@ python scripts\fix_bigquery_schema.py --check
 ## Pipeline Results
 
 The pipeline discovers and tracks:
-- **59 PM2.5 sensors** across California
+- **> 1,500 PM2.5 sensors** across California
 - **Sensor metadata**: Location, ownership, operational status
 - **Geographic coverage**: Full California state with lat/lon coordinates
 - **Data freshness**: Tracks last measurement timestamps
