@@ -10,8 +10,10 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
 
-from pipeline_config import PipelineConfig
-
+try:
+    from pipeline_config import PipelineConfig
+except ModuleNotFoundError:
+    from scripts.pipeline_config import PipelineConfig
 
 class OpenAQClient:
     """Handles all OpenAQ API operations with robust error handling and retry logic"""
@@ -364,21 +366,28 @@ class OpenAQClient:
 
 
 # Utility functions
-def test_api_connection(config: PipelineConfig) -> bool:
-    """Test if OpenAQ API is accessible with current credentials"""
+def check_api_connection(config: PipelineConfig) -> Tuple[bool, str]:
+    """Check if OpenAQ API is accessible with current credentials
+    
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
     try:
         client = OpenAQClient(config)
-        
-        # Simple test request
-        url = f"{config.OPENAQ_API_BASE}/locations"
-        params = {"limit": 1, "page": 1}
-        
-        result = client._make_request(url, params)
-        return result is not None
-        
+        # Use the public fetch method with minimal params
+        result = client.fetch_pm25_ca_sensors()
+        return (True, f"Connection successful, found {len(result)} sensors")
     except Exception as e:
-        logging.getLogger(__name__).error(f"API connection test failed: {e}")
-        return False
+        return (False, f"Connection failed: {str(e)}")
+    
+        # url = f"{config.OPENAQ_API_BASE}/locations"
+        # params = {"limit": 1, "page": 1}
+        # result = client._make_request(url, params)
+        # return result is not None
+        
+    # except Exception as e:
+    #     logging.getLogger(__name__).error(f"API connection test failed: {e}")
+    #     return False
 
 
 # Example usage and testing
@@ -397,7 +406,7 @@ if __name__ == "__main__":
     
     # Test API connection
     print("Testing API connection...")
-    if test_api_connection(config):
+    if check_api_connection(config):
         print("✓ API connection successful")
     else:
         print("✗ API connection failed")
