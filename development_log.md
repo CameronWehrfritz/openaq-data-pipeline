@@ -4,7 +4,7 @@ This development log documents my design and debugging process for the OpenAQ pi
 
 Author: Cameron Wehrfritz   
 Created: 2025-08-23     
-Updated: 2025-09-04
+Last Updated: 2025-10-01
 
 ---
 
@@ -473,7 +473,7 @@ comparison
 
 ---
 
-# Session 9: Title
+# Session 9: First Unit Test Implementation
 2025-10-01 (1:45pm - 2:45pm)
 
 ## 1. Technical Progress
