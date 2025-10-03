@@ -4,7 +4,7 @@ This development log documents my design and debugging process for the OpenAQ pi
 
 Author: Cameron Wehrfritz   
 Created: 2025-08-23     
-Last Updated: 2025-10-01
+Last Updated: 2025-10-03
 
 ---
 
@@ -524,6 +524,74 @@ except ModuleNotFoundError:
 - **Key Accomplishments**: Implemented first unit test with proper pytest structure, resolved import path conflicts for dual-context usage, learned pytest fundamentals
 - **Blockers Identified**: BigQuery streaming buffer preventing UPDATE/DELETE operations on recently inserted data in job_tracker. Fix strategy: Change to INSERT completion records instead of UPDATE, creating separate records for job start/end events (better audit trail)
 - **Next Session Goals**: Resolve job_tracker streaming buffer issue by implementing INSERT-based completion tracking
+
+---
+
+# Session 10: Refactor job tracker for INSERT-based event tracking
+2025-10-03 (2:30pm - 3:30pm)
+
+## 1. Technical Progress
+- Refactored `job_tracker.py` to use INSERT-based event recording instead of UPDATE operations
+- Added `event_type` field to schema (START vs END events)
+- Modified `start_job()` to INSERT a START event with status "RUNNING"
+- Replaced `end_job()` UPDATE logic with INSERT of END event containing completion metrics
+- Updated query methods to JOIN or FILTER events appropriately (`get_job_history()`, `get_job_statistics()`)
+- Dropped and recreated job tracking table with new event-based schema
+- Created comprehensive unit tests for refactored functionality (`tests/test_job_tracker.py`)
+- Configured Git Bash environment with necessary credentials and project settings
+
+## 2. Problem-Solving Documentation
+**Primary Problem:** BigQuery streaming buffer preventing UPDATE/DELETE operations on recently inserted job tracking records
+
+**Root Cause:** BigQuery's streaming buffer maintains recently inserted data (up to 90 minutes) in a special state that doesn't support UPDATE or DELETE operations. Original implementation inserted START record, then attempted UPDATE with completion data, which failed immediately.
+
+**Solution Discovery Process:**
+1. Identified streaming buffer as architectural limitation rather than code bug
+2. Researched BigQuery best practices for audit logging and event tracking
+3. Designed event-based schema where each job generates separate START and END records
+4. Refactored to use only INSERT operations, avoiding streaming buffer restrictions entirely
+
+**Implementation Details:**
+- Changed `end_job()` from UPDATE to INSERT operation
+- Added `event_type` column to distinguish START/END events
+- Modified queries to JOIN START/END events or FILTER to END events for metrics
+- UUID-based job_id links related events
+
+**Testing Challenges:**
+- Git Bash environment required explicit environment variable exports (`PROJECT_ID`, `GOOGLE_APPLICATION_CREDENTIALS`)
+- Pandas converts BigQuery NULL to `np.nan`, requiring `pd.isna()` instead of `is None` checks
+- Tests initially failed due to missing PROJECT_ID configuration in new shell environment
+
+**Verification:** BigQuery table query confirmed proper event structure with START and END records, no streaming buffer errors in pipeline execution
+
+## 3. Performance Metrics
+- Pipeline execution: 44.09 seconds (no change from previous performance)
+- Unit test execution: 8.36 seconds for 2 tests
+- No UPDATE operation failures (streaming buffer issue resolved)
+- Event-based tracking adds minimal overhead (two INSERTs vs one INSERT + one UPDATE)
+
+## 4. Learning Milestones
+- Event-based audit logging pattern for systems with write restrictions
+- BigQuery streaming buffer architecture and limitations
+- Git Bash environment configuration for Python development
+- Pandas/numpy NULL handling (`np.nan` vs `None`)
+- Environment variable inheritance in subprocess execution
+- Integration testing with actual database operations
+- Pytest parameterization and assertion patterns for database tests
+
+## 5. Time Management
+- Focused 1-hour session with clear objective (fix streaming buffer blocker)
+- ~20 minutes: Code refactoring
+- ~30 minutes: Test setup and environment configuration debugging  
+- ~10 minutes: Final verification and documentation
+- Efficient troubleshooting of environment issues using systematic debugging
+
+## 6. Session Summary
+- **Key Accomplishments:** Successfully refactored job tracker to event-based INSERT pattern, eliminating streaming buffer errors. Created passing unit tests verifying START/END event creation and metrics storage. Pipeline now runs without job tracking failures.
+- **Blockers Identified:** Job metrics still showing zeros (not wired up in main pipeline). Git Bash requires explicit environment variable configuration for testing.
+- **Next Session Goals:**
+  - Wire up metric tracking calls in main pipeline (`job_tracker.update_metrics()`, `job_tracker.increment_metric()`).
+  - Consider creating .env file for easier environment management across shells.
 
 ---
 
